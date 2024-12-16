@@ -54,18 +54,22 @@ function getAuthErrorMessage(error) {
 function updateCharacterCount(inputId, counterId, maxLength) {
     const input = $(`#${inputId}`);
     const counter = $(`#${counterId}`);
-    
-    input.on('input', () => {
+
+    const updateCounter = () => {
         const length = input.val().length;
         const remaining = maxLength - length;
         counter.text(`残り ${remaining} 文字`);
-    
+
         if (remaining < 0) {
             counter.addClass('error');
         } else {
             counter.removeClass('error');
         }
-    });
+    };
+
+    // 初期化時にもカウント更新
+    updateCounter();
+    input.on('input', updateCounter);
 }
 
 // 投稿内容のバリデーション
@@ -205,6 +209,9 @@ function createPostElement(post) {
                         (編集済み: ${formatTimestamp(post.updatedAt)})
                     </span>
                 ` : ''}
+                <button onclick="likePost('${post.id}'">
+        👍 ${Object.keys(post.likes || {}).length} いいね
+    </button>
             </div>
         </div>
     `;
@@ -467,6 +474,37 @@ $(function() {
         console.error("Firebase initialization error:", error);
         showMessage('Firebaseの初期化に失敗しました', 'error');
     }
+
+    //いいねボタンの追加
+function likePost(postId) {
+    if (!currentUser) {
+        showMessage('ログインが必要です', 'error');
+        return;
+    }
+
+    const postRef = postsRef.child(postId);
+
+    postRef.transaction((post) => {
+        if (post) {
+            if (!post.likes) {
+                post.likes = {};
+            }
+            if (post.likes[currentUser.uid]) {
+                delete post.likes[currentUser.uid];
+            } else {
+                post.likes[currentUser.uid] = true;
+            }
+        }
+        return post;
+    }).then(() => {
+        showMessage('「いいね」を更新しました');
+        loadPosts(); // 再読み込みでいいね数を反映
+    }).catch((error) => {
+        showMessage('「いいね」の更新に失敗しました：' + error.message, 'error');
+    });
+}
+
+
 
     // 認証状態の監視
     firebase.auth().onAuthStateChanged((user) => {
