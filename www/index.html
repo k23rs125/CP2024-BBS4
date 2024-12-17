@@ -1,7 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
-    <h2> 投稿一覧 <span id = "postCount">(0件)</span></h2>
+   
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta http-equiv="Content-Security-Policy" content="default-src * data: gap: content: https://ssl.gstatic.com; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
@@ -9,6 +9,7 @@
     <script src="components/loader.js"></script>
     <link rel="stylesheet" href="components/loader.css">
     <link rel="stylesheet" href="css/style.css">
+   
     
 
     <!-- Firebase SDKの読み込み -->
@@ -16,6 +17,10 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
     <script src="www/config.js"></script>
+   
+    
+
+    
 
     <script>
 let postsRef;
@@ -39,6 +44,10 @@ function showMessage(message, type = 'success') {
         messageArea.empty();
     }, 3000);
 }
+
+
+
+
 
 // 認証エラーメッセージの日本語化
 function getAuthErrorMessage(error) {
@@ -169,53 +178,65 @@ function canEditPost(post) {
 // 投稿のHTML要素を生成
 // 　バグ入りなので要修正（編集・削除機能表示判定が誤っている）
 function createPostElement(post) {
-    // 編集権限を確認
     const canEdit = canEditPost(post);
-    // 編集権限があれば、編集・削除機能を表示
-    const actions = canEdit ? `
-        <div class="post-actions">
-            <button class="btn-edit" onclick="startEdit('${post.id}')">
-                編集
-            </button>
-            <button class="btn-delete" onclick="deletePost('${post.id}')">
-                削除
-            </button>
-        </div>
-    ` : '';
-
+    const likeCount = Object.keys(post.likes || {}).length;
+    const hasLiked = post.likes && post.likes[currentUser?.uid];
+ 
     return `
-        <div class="post" id="post-${post.id}">
-            <div class="post-header">
-                <span class="post-author">${escapeHtml(post.author)}</span>
-                <!-- 編集権限があれば、編集・削除機能を表示 -->
-                ${actions}
-            </div>
-            <div class="post-content">${escapeHtml(post.content)}</div>
-            <div class="edit-form">
-                <textarea class="form-control" id="edit-${post.id}"></textarea>
-                <div class="button-group">
-                    <button class="btn-primary" onclick="updatePost('${post.id}')">
-                        更新
-                    </button>
-                    <button class="btn-cancel" onclick="cancelEdit('${post.id}')">
-                        キャンセル
-                    </button>
-                </div>
-            </div>
-            <div class="post-footer">
-                <span class="post-time">
+<div class="post" id="post-${post.id}">
+<div class="post-header">
+<span class="post-author">${escapeHtml(post.author)}</span>
+</div>
+<div class="post-content">${escapeHtml(post.content)}</div>
+<div class="post-footer">
+<span class="post-time">
                     ${formatTimestamp(post.timestamp)}
-                </span>
-                ${post.updatedAt ? `
-                    <span class="post-updated">
-                        (編集済み: ${formatTimestamp(post.updatedAt)})
-                    </span>
+</span>
+<button class="btn-like ${hasLiked ? 'liked' : ''}" onclick="toggleLike('${post.id}')">
+                    👌 <span id="like-count-${post.id}">${likeCount}</span>
+</button>
+                ${canEdit ? `
+<button class="btn-edit" onclick="startEdit('${post.id}')">編集</button>
+<button class="btn-delete" onclick="deletePost('${post.id}')">削除</button>
                 ` : ''}
-                
-            </div>
-        </div>
+</div>
+</div>
     `;
 }
+function toggleLike(postId) {
+    if (!currentUser) {
+        showMessage('いいねをするにはログインが必要です', 'error');
+        return;
+    }
+ 
+    const userId = currentUser.uid;
+    const postRef = postsRef.child(postId).child('likes');
+    postRef.once('value', (snapshot) => {
+        const likes = snapshot.val() || {};
+        const hasLiked = !!likes[userId];
+ 
+        if (hasLiked) {
+            // いいねを取り消す
+            postRef.child(userId).remove()
+                .then(() => {
+                    showMessage('いいねを取り消しました');
+                })
+                .catch((error) => {
+                    showMessage('いいね取り消しに失敗しました: ' + error.message, 'error');
+                });
+        } else {
+            // いいねを追加する
+            postRef.child(userId).set(true)
+                .then(() => {
+                    showMessage('いいねしました');
+                })
+                .catch((error) => {
+                    showMessage('いいねに失敗しました: ' + error.message, 'error');
+                });
+        }
+    });
+}
+
 
 // 投稿の表示処理
 function renderPosts(posts) {
@@ -524,8 +545,14 @@ window.addEventListener('unload', function() {
         postsListener = null;
     }
 });
+
+//javascriptの命令はここから配置
+
+
+
     </script>
 </head>
+
 <body>
     <div class="container">
         <h1>掲示板アプリ</h1>
@@ -627,5 +654,8 @@ window.addEventListener('unload', function() {
             </div>
         </div>
     </div>
+    
+
+   
 </body>
 </html>
