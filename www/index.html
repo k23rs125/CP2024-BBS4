@@ -1,6 +1,7 @@
 <!DOCTYPE HTML>
 <html>
 <head>
+    <h2> 投稿一覧 <span id = "postCount">(0件)</span></h2>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <meta http-equiv="Content-Security-Policy" content="default-src * data: gap: content: https://ssl.gstatic.com; style-src * 'unsafe-inline'; script-src * 'unsafe-inline' 'unsafe-eval'">
@@ -8,6 +9,7 @@
     <script src="components/loader.js"></script>
     <link rel="stylesheet" href="components/loader.css">
     <link rel="stylesheet" href="css/style.css">
+    
 
     <!-- Firebase SDKの読み込み -->
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -209,9 +211,7 @@ function createPostElement(post) {
                         (編集済み: ${formatTimestamp(post.updatedAt)})
                     </span>
                 ` : ''}
-                <button onclick="likePost('${post.id}'">
-        👍 ${Object.keys(post.likes || {}).length} いいね
-    </button>
+                
             </div>
         </div>
     `;
@@ -475,34 +475,6 @@ $(function() {
         showMessage('Firebaseの初期化に失敗しました', 'error');
     }
 
-    //いいねボタンの追加
-function likePost(postId) {
-    if (!currentUser) {
-        showMessage('ログインが必要です', 'error');
-        return;
-    }
-
-    const postRef = postsRef.child(postId);
-
-    postRef.transaction((post) => {
-        if (post) {
-            if (!post.likes) {
-                post.likes = {};
-            }
-            if (post.likes[currentUser.uid]) {
-                delete post.likes[currentUser.uid];
-            } else {
-                post.likes[currentUser.uid] = true;
-            }
-        }
-        return post;
-    }).then(() => {
-        showMessage('「いいね」を更新しました');
-        loadPosts(); // 再読み込みでいいね数を反映
-    }).catch((error) => {
-        showMessage('「いいね」の更新に失敗しました：' + error.message, 'error');
-    });
-}
 
 
 
